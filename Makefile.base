@@ -1,0 +1,7 @@
+
+CPP		:= g++
+CPPFLAGS	:= -g
+
+TEST_INCLUDE	:= -I ../src
+TEST_LIBS	:= -lgtest_main -lgtest -lpthread
+
