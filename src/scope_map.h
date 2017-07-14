@@ -30,11 +30,20 @@ private:
     typedef std::map<KeyType, ValueType> MapType;
 
     typedef enum {
+	NOP,
 	SET,
-	UNSET
+	SET_LOCAL,
+	UNSET,
+	UNSET_LOCAL,
     } ChangeOpType;
     
     struct ChangeOp {
+	ChangeOp(void) : _type(NOP) {}
+	ChangeOp(ChangeOpType type, const KeyType& key, const ValueType& value)
+	    : _type(type), _key(key), _value(value) {}
+	ChangeOp(const ChangeOp& other)
+	    : _type(other._type), _key(other._key), _value(other._value) {}
+
 	ChangeOpType _type;
 	KeyType      _key;
 	ValueType    _value;
@@ -76,6 +85,20 @@ template<typename ValueType, typename KeyType>
 void
 ScopeMap<ValueType,KeyType>::set(const KeyType& key, const ValueType& value, bool bIsLocal)
 {
+    typename MapType::iterator it = _map.find(key);
+    if (it == _map.end()) {
+	_changeOps.push(ChangeOp(UNSET, key, value));
+	if (bIsLocal) {
+	    _postPushOps.push(ChangeOp(UNSET_LOCAL, key, value));
+	}
+    } else {
+	_changeOps.push(ChangeOp(SET, key, it->second));
+	if (bIsLocal) {
+	    _postPushOps.push(ChangeOp(SET_LOCAL, key, it->second));
+	}
+    }
+    it->second = value;
+    _scopeSize.top() += 1;
 }
 
 template<typename ValueType, typename KeyType>

@@ -17,3 +17,16 @@ TEST(Basic, TDKey_GetDefaultValue)
     EXPECT_EQ(sm.get("bar"), 17);
     EXPECT_EQ(sm["foo"], 17);
 }
+
+TEST(Basic, TD_SetGet)
+{
+    ScopeMap<> sm("n/a");
+    EXPECT_EQ(sm["foo"], "n/a");
+    EXPECT_EQ(sm.get("bar"), "n/a");
+    sm.set("foo", "hello");
+    EXPECT_EQ(sm["foo"], "hello");
+    EXPECT_EQ(sm.get("bar"), "n/a");
+    sm.set("bar", "world");
+    EXPECT_EQ(sm["foo"], "hello");
+    EXPECT_EQ(sm.get("bar"), "world");
+}
