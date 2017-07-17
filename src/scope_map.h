@@ -10,6 +10,8 @@
 #include <string>
 #include <map>
 #include <stack>
+#include <vector>
+#include <exception>
 
 template<typename ValueType=std::string, typename KeyType=std::string>
 class ScopeMap
@@ -18,8 +20,8 @@ public:
     ScopeMap(const ValueType& defaultValue);
     virtual ~ScopeMap(void);
 
-    void pushScope(void);
-    void popScope(void);
+    void push(void);
+    void pop(void);
 
     void set(const KeyType& key, const ValueType& value, bool bIsLocal=false);
 
@@ -32,9 +34,9 @@ private:
     typedef enum {
 	NOP,
 	SET,
-	SET_LOCAL,
 	UNSET,
-	UNSET_LOCAL,
+	POST_PUSH_SET,
+	POST_PUSH_UNSET,
     } ChangeOpType;
     
     struct ChangeOp {
@@ -52,7 +54,7 @@ private:
 private:
     MapType                       _map;
     std::stack<ChangeOp>          _changeOps;
-    std::stack<ChangeOp>          _postPushOps;
+    std::vector<ChangeOp>         _postPushOps;
     std::stack<unsigned int>      _scopeSize;
     ValueType                     _defaultValue;
 };
@@ -71,30 +73,58 @@ ScopeMap<ValueType,KeyType>::~ScopeMap(void)
 
 template<typename ValueType, typename KeyType>
 void
-ScopeMap<ValueType,KeyType>::pushScope(void)
+ScopeMap<ValueType,KeyType>::push(void)
 {
+}
+
+// restore the previos state...
+// that is, unrole in reverse order the change log to the last push point.
+// special care for handling "local" scope mappings
+template<typename ValueType, typename KeyType>
+void
+ScopeMap<ValueType,KeyType>::pop(void)
+{
+    // no more push are expected from this scope. clear the post push stack
+    _postPushOps.erase(_postPushOps.begin(), _postPushOps.end());
+
+    for(int nRoleBack = _scopeSize.top(); nRoleBack; --nRoleBack) {
+	ChangeOp& op  = _changeOps.top();
+	switch (op._type) {
+	case SET:
+	    _map[op._key] = op._value;
+	    break;
+	case UNSET:
+	    _map.erase(op._key);
+	    break;
+	case POST_PUSH_SET:
+	    _postPushOps.push_back(ChangeOp(SET, op._key, op._value));
+	    break;
+	case POST_PUSH_UNSET:
+	    _postPushOps.push_back(ChangeOp(UNSET, op._key, op._value));
+	    break;
+	default:
+	}
+    }
+
+    _scopeSize.pop();
 }
 
 template<typename ValueType, typename KeyType>
 void
-ScopeMap<ValueType,KeyType>::popScope(void)
-{
-}
-
-template<typename ValueType, typename KeyType>
-void
-ScopeMap<ValueType,KeyType>::set(const KeyType& key, const ValueType& value, bool bIsLocal)
+ScopeMap<ValueType,KeyType>::set(const KeyType& key,
+				 const ValueType& value,
+				 bool bIsLocal)
 {
     typename MapType::iterator it = _map.find(key);
     if (it == _map.end()) {
 	_changeOps.push(ChangeOp(UNSET, key, value));
 	if (bIsLocal) {
-	    _postPushOps.push(ChangeOp(UNSET_LOCAL, key, value));
+	    _postPushOps.push_back(ChangeOp(UNSET, key, value));
 	}
     } else {
 	_changeOps.push(ChangeOp(SET, key, it->second));
 	if (bIsLocal) {
-	    _postPushOps.push(ChangeOp(SET_LOCAL, key, it->second));
+	    _postPushOps.push_back(ChangeOp(SET, key, it->second));
 	}
     }
     it->second = value;
