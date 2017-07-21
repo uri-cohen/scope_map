@@ -13,9 +13,27 @@
 #include <vector>
 #include <exception>
 
+#define SCOPE_MAP_EXCEPTION(_name)				         \
+class _name##Exception : public ScopeMapException {                      \
+public:									 \
+    _name##Exception(const std::string& str) : ScopeMapException(str) {} \
+    virtual ~_name##Exception(void) {}					 \
+}
+
 template<typename ValueType=std::string, typename KeyType=std::string>
 class ScopeMap
 {
+    class ScopeMapException : public std::exception {
+    public:
+	ScopeMapException(const std::string& str) : _str(str) {}
+	virtual ~ScopeMapException(void) {}
+	virtual const char* what() const { return _str.c_str(); }
+    private:
+	std::string _str;
+    };
+
+    SCOPE_MAP_EXCEPTION(UnsupportedChangeOpType);
+    
 public:
     ScopeMap(const ValueType& defaultValue);
     virtual ~ScopeMap(void);
@@ -103,6 +121,8 @@ ScopeMap<ValueType,KeyType>::pop(void)
 	    _postPushOps.push_back(ChangeOp(UNSET, op._key, op._value));
 	    break;
 	default:
+	    throw UnsupportedChangeOpTypeException(
+		"pop: Unsupported ChangeOp type: " + std::to_string(op._type));
 	}
     }
 
