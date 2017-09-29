@@ -44,7 +44,6 @@ public:
     void set(const KeyType& key, const ValueType& value, bool bIsLocal=false);
 
     ValueType get(const KeyType& key);
-    ValueType operator[](const KeyType& key) { return get(key); }
 
 private:
     typedef std::map<KeyType, ValueType> MapType;
